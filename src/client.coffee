@@ -1089,10 +1089,20 @@ class Dropbox.Client
   #   that produced the given cursor, and the first parameter is null
   # @return {XMLHttpRequest} the XHR object used for this API call
   pullChanges: (cursor, options, callback) ->
-    if (not callback) and (typeof cursor is 'function') and (typeof options is 'function')
+    # if cursor and options were not passed
+    if (not options) and (not callback) and (typeof cursor is 'function')
       callback = cursor
       cursor = null
       options = null
+    # if options were not passed but cursor was passed
+    else if (not callback) and (typeof options is 'function')
+      callback = options
+      options = null
+    # if cursor was not passed but options were passed
+    else if (not callback) and (typeof options is 'function') and (not cursor.cursorTag) and (typeof cursor is 'object')
+      callback = options
+      cursor = null
+      options = cursor
 
     if cursor
       if cursor.cursorTag  # cursor is a Dropbox.Http.PulledChanges instance
@@ -1107,11 +1117,15 @@ class Dropbox.Client
         params.path_prefix = options.pathPrefix
       if options.includeMediaInfo
         params.include_media_info = 'true'
+    else
+      if cursor.options
+        params.path_prefix = cursor.options.path_prefix
+        params.include_media_info = 'true'
 
     xhr = new Dropbox.Util.Xhr 'POST', @_urls.delta
     xhr.setParams(params).signWithOauth @_oauth
     @_dispatchXhr xhr, (error, deltaInfo) ->
-      callback error, Dropbox.Http.PulledChanges.parse(deltaInfo)
+      callback(error, Dropbox.Http.PulledChanges.parse(deltaInfo))
 
   # Alias for "pullChanges" that matches the HTTP API.
   #
